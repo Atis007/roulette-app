@@ -1,6 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
-import { Language } from '../data/translations';
-import { QuestionCache, loadQuestionsFromDb } from '../utils/database';
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import type { Language } from "../data/translations";
+import { loadQuestionsFromDb, type QuestionCache } from "../utils/database";
 
 interface GameState {
   rating: string;
@@ -17,7 +25,7 @@ interface GameState {
   resetGame: () => void;
   setLanguage: (lang: Language) => void;
   loadQuestions: () => Promise<void>;
-  pickQuestion: (type: 'truth' | 'dare' | 'general') => string;
+  pickQuestion: (type: "truth" | "dare" | "general") => string;
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -29,42 +37,56 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-type DeckKey = 'truth' | 'dare' | 'general';
-const emptyDeck = () => ({ truth: [] as string[], dare: [] as string[], general: [] as string[] });
+type DeckKey = "truth" | "dare" | "general";
+const emptyDeck = () => ({
+  truth: [] as string[],
+  dare: [] as string[],
+  general: [] as string[],
+});
 const emptyPtrs = () => ({ truth: 0, dare: 0, general: 0 });
 
 const GameContext = createContext<GameState | undefined>(undefined);
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  const [rating, setRating]       = useState('');
-  const [gameType, setGameType]   = useState('');
-  const [players, setPlayers]     = useState<string[]>([]);
-  const [language, setLanguage]   = useState<Language>('en');
-  const [questionCache, setQuestionCache] = useState<QuestionCache | null>(null);
+  const [rating, setRating] = useState("");
+  const [gameType, setGameType] = useState("");
+  const [players, setPlayers] = useState<string[]>([]);
+  const [language, setLanguage] = useState<Language>("en");
+  const [questionCache, setQuestionCache] = useState<QuestionCache | null>(
+    null,
+  );
   const [questionsLoading, setQuestionsLoading] = useState(false);
 
   const loadingRef = useRef(false);
   const deckRef = useRef(emptyDeck());
   const ptrRef = useRef(emptyPtrs());
+  const questionCacheRef = useRef<QuestionCache | null>(null);
 
   useEffect(() => {
     if (!questionCache) return;
     deckRef.current = {
-      truth:   shuffle(questionCache.truth),
-      dare:    shuffle(questionCache.dare),
+      truth: shuffle(questionCache.truth),
+      dare: shuffle(questionCache.dare),
       general: shuffle(questionCache.general),
     };
     ptrRef.current = emptyPtrs();
   }, [questionCache]);
 
   const pickQuestion = useCallback((type: DeckKey): string => {
-    const deck = deckRef.current[type];
-    if (!deck.length) return '';
+    if (!deckRef.current[type].length) {
+      const cache = questionCacheRef.current;
+      if (cache?.[type].length) {
+        deckRef.current[type] = shuffle([...cache[type]]);
+        ptrRef.current[type] = 0;
+      } else {
+        return "";
+      }
+    }
     const ptr = ptrRef.current[type];
-    const question = deck[ptr];
+    const question = deckRef.current[type][ptr];
     const next = ptr + 1;
-    if (next >= deck.length) {
-      deckRef.current[type] = shuffle([...deck]);
+    if (next >= deckRef.current[type].length) {
+      deckRef.current[type] = shuffle([...deckRef.current[type]]);
       ptrRef.current[type] = 0;
     } else {
       ptrRef.current[type] = next;
@@ -90,14 +112,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
   };
 
   const resetGame = () => {
-    setRating('');
-    setGameType('');
+    setRating("");
+    setGameType("");
     setPlayers([]);
     setQuestionCache(null);
     setQuestionsLoading(false);
     loadingRef.current = false;
     deckRef.current = emptyDeck();
     ptrRef.current = emptyPtrs();
+    questionCacheRef.current = null;
   };
 
   const handleSetLanguage = (lang: Language) => {
@@ -107,30 +130,45 @@ export function GameProvider({ children }: { children: ReactNode }) {
     loadingRef.current = false;
     deckRef.current = emptyDeck();
     ptrRef.current = emptyPtrs();
+    questionCacheRef.current = null;
   };
 
-  const loadQuestions = async () => {
+  const loadQuestions = useCallback(async () => {
     if (!rating || !gameType || loadingRef.current) return;
     loadingRef.current = true;
     setQuestionsLoading(true);
     try {
       const cache = await loadQuestionsFromDb(gameType, rating, language);
+      questionCacheRef.current = cache;
       setQuestionCache(cache);
     } catch (e) {
-      console.warn('[DB] Failed to load questions:', e);
+      console.warn("[DB] Failed to load questions:", e);
     } finally {
       setQuestionsLoading(false);
       loadingRef.current = false;
     }
-  };
+  }, [rating, gameType, language]);
 
   return (
-    <GameContext.Provider value={{
-      rating, gameType, players, language,
-      questionCache, questionsLoading,
-      setRating, setGameType, addPlayer, removePlayer, editPlayer,
-      resetGame, setLanguage: handleSetLanguage, loadQuestions, pickQuestion,
-    }}>
+    <GameContext.Provider
+      value={{
+        rating,
+        gameType,
+        players,
+        language,
+        questionCache,
+        questionsLoading,
+        setRating,
+        setGameType,
+        addPlayer,
+        removePlayer,
+        editPlayer,
+        resetGame,
+        setLanguage: handleSetLanguage,
+        loadQuestions,
+        pickQuestion,
+      }}
+    >
       {children}
     </GameContext.Provider>
   );
@@ -138,6 +176,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
 export function useGame() {
   const ctx = useContext(GameContext);
-  if (!ctx) throw new Error('useGame must be used within a GameProvider');
+  if (!ctx) throw new Error("useGame must be used within a GameProvider");
   return ctx;
 }

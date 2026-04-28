@@ -1,7 +1,14 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useEffect, useRef } from "react";
-import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Animated,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { BouncyButton } from "../components/BouncyButton";
 import { ScreenWrapper } from "../components/ScreenWrapper";
 import { useGame } from "../context/GameContext";
@@ -11,7 +18,13 @@ import { fontScale, scale, verticalScale } from "../utils/responsive";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "GameType">;
 
-function AnimatedRow({ index, children }: { index: number; children: React.ReactNode }) {
+function AnimatedRow({
+  index,
+  children,
+}: {
+  index: number;
+  children: React.ReactNode;
+}) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateX = useRef(new Animated.Value(-50)).current;
 
@@ -30,9 +43,13 @@ function AnimatedRow({ index, children }: { index: number; children: React.React
         bounciness: 6,
       }),
     ]).start();
-  }, []);
+  }, [opacity, translateX, index]);
 
-  return <Animated.View style={{ opacity, transform: [{ translateX }] }}>{children}</Animated.View>;
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateX }] }}>
+      {children}
+    </Animated.View>
+  );
 }
 
 export function GameTypeScreen() {
@@ -45,10 +62,18 @@ export function GameTypeScreen() {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(titleOpacity, { toValue: 1, duration: 350, useNativeDriver: true }),
-      Animated.spring(titleScale, { toValue: 1, useNativeDriver: true, bounciness: 10 }),
+      Animated.timing(titleOpacity, {
+        toValue: 1,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+      Animated.spring(titleScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        bounciness: 10,
+      }),
     ]).start();
-  }, []);
+  }, [titleOpacity, titleScale]);
 
   const types = [
     {
@@ -88,7 +113,10 @@ export function GameTypeScreen() {
       >
         {/* Title */}
         <Animated.Text
-          style={[styles.title, { opacity: titleOpacity, transform: [{ scale: titleScale }] }]}
+          style={[
+            styles.title,
+            { opacity: titleOpacity, transform: [{ scale: titleScale }] },
+          ]}
         >
           {t.chooseGame}
         </Animated.Text>

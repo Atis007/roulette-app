@@ -13,7 +13,12 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 
 const RATINGS = [
   { label: "PG", color: "blue" as const, rgb: "14,165,200", shadow: "#0e7490" },
-  { label: "PG-13", color: "yellow" as const, rgb: "245,200,0", shadow: "#ca8a04" },
+  {
+    label: "PG-13",
+    color: "yellow" as const,
+    rgb: "245,200,0",
+    shadow: "#ca8a04",
+  },
   { label: "R", color: "pink" as const, rgb: "232,54,122", shadow: "#be185d" },
 ];
 
@@ -46,7 +51,7 @@ function AnimatedCard({
         bounciness: 8,
       }),
     ]).start();
-  }, []);
+  }, [opacity, translateY, index]);
 
   return (
     <Animated.View
@@ -76,10 +81,18 @@ export function HomeScreen() {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(titleOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.spring(titleTranslateY, { toValue: 0, useNativeDriver: true, bounciness: 10 }),
+      Animated.timing(titleOpacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.spring(titleTranslateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        bounciness: 10,
+      }),
     ]).start();
-  }, []);
+  }, [titleOpacity, titleTranslateY]);
 
   const descs = [t.pgDesc, t.pg13Desc, t.rDesc];
 
@@ -89,7 +102,10 @@ export function HomeScreen() {
         <Animated.Text
           style={[
             styles.title,
-            { opacity: titleOpacity, transform: [{ translateY: titleTranslateY }] },
+            {
+              opacity: titleOpacity,
+              transform: [{ translateY: titleTranslateY }],
+            },
           ]}
           numberOfLines={1}
           adjustsFontSizeToFit
@@ -111,7 +127,12 @@ export function HomeScreen() {
               >
                 {r.label}
               </BouncyButton>
-              <View style={[styles.descPill, { backgroundColor: `rgba(${r.rgb},0.30)` }]}>
+              <View
+                style={[
+                  styles.descPill,
+                  { backgroundColor: `rgba(${r.rgb},0.30)` },
+                ]}
+              >
                 <Text
                   style={styles.cardDesc}
                   numberOfLines={2}

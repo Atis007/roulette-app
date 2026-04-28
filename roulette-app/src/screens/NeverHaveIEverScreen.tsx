@@ -1,7 +1,14 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useEffect, useRef, useState } from "react";
-import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { BouncyButton } from "../components/BouncyButton";
 import { ScreenWrapper } from "../components/ScreenWrapper";
 import { useGame } from "../context/GameContext";
@@ -13,46 +20,56 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "NeverHaveIEver">;
 
 export function NeverHaveIEverScreen() {
   const navigation = useNavigation<Nav>();
-  const { resetGame, language, loadQuestions, questionCache, pickQuestion } = useGame();
+  const { resetGame, language, loadQuestions, questionCache, pickQuestion } =
+    useGame();
   const t = translations[language];
 
-  const [currentQuestion, setCurrentQuestion] = useState('');
+  const [currentQuestion, setCurrentQuestion] = useState("");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
-  const animateIn = () => {
+  const animateIn = useCallback(() => {
     fadeAnim.setValue(0);
     scaleAnim.setValue(0.9);
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, bounciness: 8 }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        bounciness: 8,
+      }),
     ]).start();
-  };
+  }, [fadeAnim, scaleAnim]);
 
-  // Load questions on mount (NHIE skips PlayerInputScreen)
   useEffect(() => {
+    const unsub = navigation.addListener("beforeRemove", () => {
+      resetGame();
+    });
+    return unsub;
+  }, [navigation, resetGame]);
+
+  useEffect(() => {
+    setCurrentQuestion("");
     loadQuestions();
-  }, []);
+  }, [loadQuestions]);
 
   useEffect(() => {
     if (questionCache?.general.length && !currentQuestion) {
-      setCurrentQuestion(pickQuestion('general'));
+      setCurrentQuestion(pickQuestion("general"));
     }
-  }, [questionCache]);
-
-  // Re-pick when language changes (new cache will load)
-  useEffect(() => {
-    setCurrentQuestion('');
-    loadQuestions();
-  }, [language]);
+  }, [questionCache, pickQuestion, currentQuestion]);
 
   useEffect(() => {
     if (currentQuestion) animateIn();
-  }, [currentQuestion]);
+  }, [currentQuestion, animateIn]);
 
   const handleNext = () => {
-    setCurrentQuestion(pickQuestion('general'));
+    setCurrentQuestion(pickQuestion("general"));
   };
 
   const handleGoHome = () => {
@@ -65,7 +82,11 @@ export function NeverHaveIEverScreen() {
       <View style={styles.container}>
         {/* Top controls */}
         <View style={styles.topControls}>
-          <TouchableOpacity style={styles.homeBtn} onPress={handleGoHome} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.homeBtn}
+            onPress={handleGoHome}
+            activeOpacity={0.7}
+          >
             <Text style={styles.homeBtnText}>🏠</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -82,7 +103,10 @@ export function NeverHaveIEverScreen() {
 
         {/* Question card */}
         <Animated.View
-          style={[styles.questionCard, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}
+          style={[
+            styles.questionCard,
+            { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+          ]}
         >
           <ScrollView
             contentContainerStyle={styles.questionScroll}
@@ -94,7 +118,12 @@ export function NeverHaveIEverScreen() {
 
         {/* Next button */}
         <View style={styles.nextBtnContainer}>
-          <BouncyButton color="yellow" size="lg" style={{ width: "100%" }} onPress={handleNext}>
+          <BouncyButton
+            color="yellow"
+            size="lg"
+            style={{ width: "100%" }}
+            onPress={handleNext}
+          >
             {t.done}
           </BouncyButton>
         </View>

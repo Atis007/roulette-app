@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -17,7 +17,13 @@ import { ScreenWrapper } from "../components/ScreenWrapper";
 import { useGame } from "../context/GameContext";
 import { translations } from "../data/translations";
 import type { RootStackParamList } from "../types/navigation";
-import { fontScale, SCREEN_HEIGHT, SCREEN_WIDTH, scale, verticalScale } from "../utils/responsive";
+import {
+  fontScale,
+  SCREEN_HEIGHT,
+  SCREEN_WIDTH,
+  scale,
+  verticalScale,
+} from "../utils/responsive";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Spinner">;
 
@@ -31,19 +37,43 @@ const COLORS = [
   "#5856D6",
   "#FF2D55",
 ];
-const WHEEL_SIZE = Math.min(SCREEN_WIDTH - scale(48), SCREEN_HEIGHT * 0.44, 360);
+const WHEEL_SIZE = Math.min(
+  SCREEN_WIDTH - scale(48),
+  SCREEN_HEIGHT * 0.44,
+  360,
+);
 
 function buildSlices(players: string[]) {
   const n = players.length || 1;
   const sliceAngle = 360 / n;
 
   if (n === 1) {
-    return { paths: [{ d: "", fill: COLORS[0], isCircle: true }], texts: [] as any[] };
+    return {
+      paths: [
+        { key: players[0] ?? "solo", d: "", fill: COLORS[0], isCircle: true },
+      ],
+      texts: [] as {
+        key: string;
+        x: number;
+        y: number;
+        rotation: number;
+        label: string;
+        fontSize: number;
+      }[],
+    };
   }
 
   let currentAngle = 0;
-  const paths: { d: string; fill: string; isCircle: boolean }[] = [];
-  const texts: { x: number; y: number; rotation: number; label: string; fontSize: number }[] = [];
+  const paths: { key: string; d: string; fill: string; isCircle: boolean }[] =
+    [];
+  const texts: {
+    key: string;
+    x: number;
+    y: number;
+    rotation: number;
+    label: string;
+    fontSize: number;
+  }[] = [];
 
   for (let i = 0; i < n; i++) {
     const startRad = (currentAngle * Math.PI) / 180;
@@ -56,6 +86,7 @@ function buildSlices(players: string[]) {
     const largeArc = sliceAngle > 180 ? 1 : 0;
 
     paths.push({
+      key: players[i],
       d: `M 50 50 L ${x1} ${y1} A 50 50 0 ${largeArc} 1 ${x2} ${y2} Z`,
       fill: COLORS[i % COLORS.length],
       isCircle: false,
@@ -63,6 +94,7 @@ function buildSlices(players: string[]) {
 
     const midRad = startRad + (endRad - startRad) / 2;
     texts.push({
+      key: players[i],
       x: 50 + 35 * Math.sin(midRad),
       y: 50 - 35 * Math.cos(midRad),
       rotation: (midRad * 180) / Math.PI - 90,
@@ -78,14 +110,22 @@ function buildSlices(players: string[]) {
 
 function selectWeightedPlayer(n: number, history: number[]): number {
   const weights = new Array(n).fill(1.0);
-  const decayFactors = [0.45, 0.60, 0.80, 0.92];
-  [...history].reverse().slice(0, 4).forEach((idx, pos) => {
-    if (idx >= 0 && idx < n) {
-      weights[idx] *= decayFactors[pos];
-    }
-  });
+  const decayFactors = [0.45, 0.6, 0.8, 0.92];
+  [...history]
+    .reverse()
+    .slice(0, 4)
+    .forEach((idx, pos) => {
+      if (idx >= 0 && idx < n) {
+        weights[idx] *= decayFactors[pos];
+      }
+    });
   const len = history.length;
-  if (len >= 2 && history[len - 1] === history[len - 2] && history[len - 1] >= 0 && history[len - 1] < n) {
+  if (
+    len >= 2 &&
+    history[len - 1] === history[len - 2] &&
+    history[len - 1] >= 0 &&
+    history[len - 1] < n
+  ) {
     weights[history[len - 1]] = 0;
   }
   const total = weights.reduce((s, w) => s + w, 0);
@@ -100,7 +140,15 @@ function selectWeightedPlayer(n: number, history: number[]): number {
 
 export function SpinnerScreen() {
   const navigation = useNavigation<Nav>();
-  const { players, gameType, resetGame, language, pickQuestion } = useGame();
+  const {
+    players,
+    gameType,
+    resetGame,
+    language,
+    pickQuestion,
+    questionCache,
+    loadQuestions,
+  } = useGame();
   const t = translations[language];
 
   const [isSpinning, setIsSpinning] = useState(false);
@@ -111,6 +159,17 @@ export function SpinnerScreen() {
   const currentDeg = useRef(0);
   const rotationAnim = useRef(new Animated.Value(0)).current;
   const spinHistoryRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    if (!questionCache) loadQuestions();
+  }, [questionCache, loadQuestions]);
+
+  useEffect(() => {
+    const unsub = navigation.addListener("beforeRemove", () => {
+      resetGame();
+    });
+    return unsub;
+  }, [navigation, resetGame]);
 
   const numPlayers = players.length || 1;
   const sliceAngle = 360 / numPlayers;
@@ -123,14 +182,16 @@ export function SpinnerScreen() {
 
   const handleSpinComplete = useCallback(
     (winnerIndex: number) => {
-      spinHistoryRef.current = [...spinHistoryRef.current, winnerIndex].slice(-6);
+      spinHistoryRef.current = [...spinHistoryRef.current, winnerIndex].slice(
+        -6,
+      );
       setIsSpinning(false);
       setSelectedPlayer(players[winnerIndex]);
 
-      if (gameType === 'TRUTH OR DARE') {
+      if (gameType === "TRUTH OR DARE") {
         setShowTruthOrDareChoice(true);
       } else {
-        const q = pickQuestion('general');
+        const q = pickQuestion("general");
         if (q) setQuestion(q);
       }
     },
@@ -144,7 +205,10 @@ export function SpinnerScreen() {
     setQuestion(null);
     setShowTruthOrDareChoice(false);
 
-    const winnerIndex = selectWeightedPlayer(numPlayers, spinHistoryRef.current);
+    const winnerIndex = selectWeightedPlayer(
+      numPlayers,
+      spinHistoryRef.current,
+    );
     const targetAngle = 360 - (winnerIndex * sliceAngle + sliceAngle / 2);
     const fullSpins = Math.floor(currentDeg.current / 360);
     const newDeg = (fullSpins + 5) * 360 + targetAngle;
@@ -161,7 +225,7 @@ export function SpinnerScreen() {
     });
   };
 
-  const handleTruthOrDareChoice = (type: 'truth' | 'dare') => {
+  const handleTruthOrDareChoice = (type: "truth" | "dare") => {
     const q = pickQuestion(type);
     if (q) setQuestion(q);
     setShowTruthOrDareChoice(false);
@@ -172,13 +236,18 @@ export function SpinnerScreen() {
     navigation.navigate("Home");
   };
 
-  const modalVisible = !!selectedPlayer && (showTruthOrDareChoice || !!question);
+  const modalVisible =
+    !!selectedPlayer && (showTruthOrDareChoice || !!question);
 
   return (
     <ScreenWrapper>
       <View style={styles.container}>
         <View style={styles.topControls}>
-          <TouchableOpacity style={styles.homeBtn} onPress={handleGoHome} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.homeBtn}
+            onPress={handleGoHome}
+            activeOpacity={0.7}
+          >
             <Text style={styles.homeBtnText}>🏠</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -193,7 +262,11 @@ export function SpinnerScreen() {
         <View style={styles.wheelArea}>
           <View style={styles.wheelGroup}>
             <View style={styles.pointer}>
-              <Svg width={scale(28)} height={verticalScale(36)} viewBox="0 0 40 60">
+              <Svg
+                width={scale(28)}
+                height={verticalScale(36)}
+                viewBox="0 0 40 60"
+              >
                 <Path
                   d="M20 60L0 20C0 8.95431 8.95431 0 20 0C31.0457 0 40 8.95431 40 20L20 60Z"
                   fill="#FACC15"
@@ -203,17 +276,30 @@ export function SpinnerScreen() {
               </Svg>
             </View>
 
-            <Animated.View style={[styles.wheelWrapper, { transform: [{ rotate }] }]}>
+            <Animated.View
+              style={[styles.wheelWrapper, { transform: [{ rotate }] }]}
+            >
               <Svg viewBox="0 0 100 100" width={WHEEL_SIZE} height={WHEEL_SIZE}>
-                {paths.map((p, i) =>
+                {paths.map((p) =>
                   p.isCircle ? (
-                    <Circle key={i} cx="50" cy="50" r="50" fill={p.fill} />
+                    <Circle key={p.key} cx="50" cy="50" r="50" fill={p.fill} />
                   ) : (
-                    <Path key={i} d={p.d} fill={p.fill} stroke="white" strokeWidth="0.5" />
+                    <Path
+                      key={p.key}
+                      d={p.d}
+                      fill={p.fill}
+                      stroke="white"
+                      strokeWidth="0.5"
+                    />
                   ),
                 )}
-                {texts.map((tx, i) => (
-                  <G key={i} rotation={tx.rotation} originX={tx.x} originY={tx.y}>
+                {texts.map((tx) => (
+                  <G
+                    key={tx.key}
+                    rotation={tx.rotation}
+                    originX={tx.x}
+                    originY={tx.y}
+                  >
                     <SvgText
                       x={tx.x}
                       y={tx.y}
@@ -227,7 +313,14 @@ export function SpinnerScreen() {
                     </SvgText>
                   </G>
                 ))}
-                <Circle cx="50" cy="50" r="8" fill="white" stroke="#333" strokeWidth="1" />
+                <Circle
+                  cx="50"
+                  cy="50"
+                  r="8"
+                  fill="white"
+                  stroke="#333"
+                  strokeWidth="1"
+                />
                 <Circle cx="50" cy="50" r="4" fill="#666" />
               </Svg>
             </Animated.View>
@@ -247,7 +340,12 @@ export function SpinnerScreen() {
         </View>
       </View>
 
-      <Modal transparent visible={modalVisible} animationType="fade" statusBarTranslucent>
+      <Modal
+        transparent
+        visible={modalVisible}
+        animationType="fade"
+        statusBarTranslucent
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalPlayerName}>
@@ -261,7 +359,7 @@ export function SpinnerScreen() {
                   color="blue"
                   size="lg"
                   style={{ flex: 1 }}
-                  onPress={() => handleTruthOrDareChoice('truth')}
+                  onPress={() => handleTruthOrDareChoice("truth")}
                 >
                   {t.truth}
                 </BouncyButton>
@@ -269,7 +367,7 @@ export function SpinnerScreen() {
                   color="pink"
                   size="lg"
                   style={{ flex: 1 }}
-                  onPress={() => handleTruthOrDareChoice('dare')}
+                  onPress={() => handleTruthOrDareChoice("dare")}
                 >
                   {t.dare}
                 </BouncyButton>

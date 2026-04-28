@@ -27,7 +27,8 @@ export const translations = {
   },
   hu: {
     selectRating: "VÁLASSZ BESOROLÁST",
-    pgDesc: "Mindenkinek jó móka! Biztonságos, vicces kérdések és enyhe kihívások.",
+    pgDesc:
+      "Mindenkinek jó móka! Biztonságos, vicces kérdések és enyhe kihívások.",
     pg13Desc: "Egy kicsit fűszeresebb! Szuper tiniknek és házibulikba.",
     rDesc: "Csak 18+! Őrült feladatok és durva kérdések.",
     chooseGame: "VÁLASSZ JÁTÉKOT",
