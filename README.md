@@ -1,26 +1,29 @@
 # Drinking Roulette
 
-A mobile party drinking game built with **React Native** and **Expo**. Players enter their names, spin a roulette wheel, and the selected player must honestly answer a question — or drink. Supports two game modes, two languages, and runs on both Android and iOS via Expo Go.
+A mobile party drinking game built with **React Native** and **Expo**. Players enter their names, spin a roulette wheel, and the selected player must answer a question — or drink. Supports two game modes, three content ratings, two languages, and runs on both Android and iOS via Expo Go.
 
 ---
 
 ## Game Modes
 
-### 🎡 Roulette
-Players spin an animated wheel that randomly lands on one of the registered players. That player draws a question from the deck and must either answer truthfully or take a drink.
+### 🎡 Truth or Dare (Roulette)
+Players spin an animated wheel that lands on one of the registered players. That player chooses **Truth** or **Dare** and gets a question from the deck. Fully shuffled question pool — no repeats until every question has been seen.
 
 ### 🃏 Never Have I Ever
-Classic card-based mode. A statement is revealed each round — anyone who has done it drinks.
+Classic mode. A statement is revealed each round — anyone who has done it drinks. No player list needed, jump straight in from the game type screen.
 
 ---
 
 ## Features
 
-- **Two languages** — English and Hungarian question sets, stored in local SQLite databases
-- **Animated spinner** — smooth wheel animation with player name segments
+- **Three content ratings** — PG / PG-13 / R selected on the home screen; all question pools filtered accordingly
+- **Two languages** — English and Hungarian question sets, stored in separate bundled SQLite databases
+- **Fair spinner** — weighted random selection with recency decay; the same player cannot be picked three times in a row
+- **No question repeats** — questions are shuffled on load and served via a pointer; the deck reshuffles only after every question has appeared
+- **Animated spinner wheel** — smooth SVG wheel with player name segments and a spring pointer
 - **Bouncy buttons** — press-feedback animation on all interactive elements
-- **Responsive layout** — adapts to all screen sizes and orientations
-- **No internet required** — fully offline, all data is bundled with the app
+- **Responsive layout** — adapts to all screen sizes
+- **Offline** — fully offline, all data is bundled with the app
 
 ---
 
@@ -43,13 +46,13 @@ Classic card-based mode. A statement is revealed each round — anyone who has d
 roulette-app/
 ├── src/
 │   ├── components/         # BouncyButton, ScreenWrapper
-│   ├── context/            # GameContext — global game state
+│   ├── context/            # GameContext — players, questions, deck pointer, language
 │   ├── data/               # questions.db (EN), questions_hu.db (HU), translations.ts
 │   ├── screens/
-│   │   ├── HomeScreen          # Entry screen
-│   │   ├── GameTypeScreen      # Mode selection
-│   │   ├── PlayerInputScreen   # Add/remove players
-│   │   ├── SpinnerScreen       # Animated roulette wheel
+│   │   ├── HomeScreen          # Rating selection (PG / PG-13 / R)
+│   │   ├── GameTypeScreen      # Mode selection (Truth or Dare / Never Have I Ever)
+│   │   ├── PlayerInputScreen   # Add / edit / remove players
+│   │   ├── SpinnerScreen       # Animated roulette wheel + question modal
 │   │   └── NeverHaveIEverScreen
 │   ├── types/              # Navigation type definitions
 │   └── utils/              # database.ts, responsive.ts
@@ -81,6 +84,15 @@ Scan the QR code with **Expo Go** (Android) or the Camera app (iOS). Alternative
 npx expo start --android   # Android emulator
 npx expo start --ios       # iOS simulator (macOS only)
 ```
+
+---
+
+## Question Data
+
+Questions are stored in two SQLite databases bundled with the app:
+
+- `src/data/questions.db` — English
+- `src/data/questions_hu.db` — Hungarian
 
 ---
 

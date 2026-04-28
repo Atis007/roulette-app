@@ -138,7 +138,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     loadingRef.current = true;
     setQuestionsLoading(true);
     try {
-      const cache = await loadQuestionsFromDb(gameType, rating, language);
+      const cache = await loadQuestionsFromDb(gameType, rating);
       questionCacheRef.current = cache;
       setQuestionCache(cache);
     } catch (e) {
@@ -147,7 +147,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setQuestionsLoading(false);
       loadingRef.current = false;
     }
-  }, [rating, gameType, language]);
+  }, [rating, gameType]);
 
   return (
     <GameContext.Provider
