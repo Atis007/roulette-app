@@ -24,7 +24,6 @@ const toDbRating = (r: string): string => RATING_MAP[r] ?? r;
 
 const TYPE_MAP: Record<string, string[]> = {
   'TRUTH OR DARE':     ['TRUTH', 'DARE'],
-  'WOULD YOU RATHER':  ['WYR'],
   'NEVER HAVE I EVER': ['NHIE'],
 };
 

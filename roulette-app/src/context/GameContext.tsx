@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useRef, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { Language } from '../data/translations';
 import { QuestionCache, loadQuestionsFromDb } from '../utils/database';
 
@@ -17,7 +17,21 @@ interface GameState {
   resetGame: () => void;
   setLanguage: (lang: Language) => void;
   loadQuestions: () => Promise<void>;
+  pickQuestion: (type: 'truth' | 'dare' | 'general') => string;
 }
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+type DeckKey = 'truth' | 'dare' | 'general';
+const emptyDeck = () => ({ truth: [] as string[], dare: [] as string[], general: [] as string[] });
+const emptyPtrs = () => ({ truth: 0, dare: 0, general: 0 });
 
 const GameContext = createContext<GameState | undefined>(undefined);
 
@@ -29,8 +43,34 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [questionCache, setQuestionCache] = useState<QuestionCache | null>(null);
   const [questionsLoading, setQuestionsLoading] = useState(false);
 
-  // Prevent duplicate concurrent loads
   const loadingRef = useRef(false);
+  const deckRef = useRef(emptyDeck());
+  const ptrRef = useRef(emptyPtrs());
+
+  useEffect(() => {
+    if (!questionCache) return;
+    deckRef.current = {
+      truth:   shuffle(questionCache.truth),
+      dare:    shuffle(questionCache.dare),
+      general: shuffle(questionCache.general),
+    };
+    ptrRef.current = emptyPtrs();
+  }, [questionCache]);
+
+  const pickQuestion = useCallback((type: DeckKey): string => {
+    const deck = deckRef.current[type];
+    if (!deck.length) return '';
+    const ptr = ptrRef.current[type];
+    const question = deck[ptr];
+    const next = ptr + 1;
+    if (next >= deck.length) {
+      deckRef.current[type] = shuffle([...deck]);
+      ptrRef.current[type] = 0;
+    } else {
+      ptrRef.current[type] = next;
+    }
+    return question;
+  }, []);
 
   const addPlayer = (name: string) => {
     if (name.trim() && !players.includes(name.trim())) {
@@ -45,6 +85,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const editPlayer = (index: number, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    if (players.some((p, i) => i !== index && p === trimmed)) return;
     setPlayers(players.map((p, i) => (i === index ? trimmed : p)));
   };
 
@@ -55,6 +96,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setQuestionCache(null);
     setQuestionsLoading(false);
     loadingRef.current = false;
+    deckRef.current = emptyDeck();
+    ptrRef.current = emptyPtrs();
   };
 
   const handleSetLanguage = (lang: Language) => {
@@ -62,6 +105,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setLanguage(lang);
     setQuestionCache(null);
     loadingRef.current = false;
+    deckRef.current = emptyDeck();
+    ptrRef.current = emptyPtrs();
   };
 
   const loadQuestions = async () => {
@@ -84,7 +129,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rating, gameType, players, language,
       questionCache, questionsLoading,
       setRating, setGameType, addPlayer, removePlayer, editPlayer,
-      resetGame, setLanguage: handleSetLanguage, loadQuestions,
+      resetGame, setLanguage: handleSetLanguage, loadQuestions, pickQuestion,
     }}>
       {children}
     </GameContext.Provider>

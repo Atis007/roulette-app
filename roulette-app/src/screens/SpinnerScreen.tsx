@@ -76,9 +76,31 @@ function buildSlices(players: string[]) {
   return { paths, texts };
 }
 
+function selectWeightedPlayer(n: number, history: number[]): number {
+  const weights = new Array(n).fill(1.0);
+  const decayFactors = [0.45, 0.60, 0.80, 0.92];
+  [...history].reverse().slice(0, 4).forEach((idx, pos) => {
+    if (idx >= 0 && idx < n) {
+      weights[idx] *= decayFactors[pos];
+    }
+  });
+  const len = history.length;
+  if (len >= 2 && history[len - 1] === history[len - 2] && history[len - 1] >= 0 && history[len - 1] < n) {
+    weights[history[len - 1]] = 0;
+  }
+  const total = weights.reduce((s, w) => s + w, 0);
+  if (total <= 0) return Math.floor(Math.random() * n);
+  let r = Math.random() * total;
+  for (let i = 0; i < n; i++) {
+    r -= weights[i];
+    if (r <= 0) return i;
+  }
+  return n - 1;
+}
+
 export function SpinnerScreen() {
   const navigation = useNavigation<Nav>();
-  const { players, gameType, resetGame, language, questionCache } = useGame();
+  const { players, gameType, resetGame, language, pickQuestion } = useGame();
   const t = translations[language];
 
   const [isSpinning, setIsSpinning] = useState(false);
@@ -88,6 +110,7 @@ export function SpinnerScreen() {
 
   const currentDeg = useRef(0);
   const rotationAnim = useRef(new Animated.Value(0)).current;
+  const spinHistoryRef = useRef<number[]>([]);
 
   const numPlayers = players.length || 1;
   const sliceAngle = 360 / numPlayers;
@@ -100,17 +123,18 @@ export function SpinnerScreen() {
 
   const handleSpinComplete = useCallback(
     (winnerIndex: number) => {
+      spinHistoryRef.current = [...spinHistoryRef.current, winnerIndex].slice(-6);
       setIsSpinning(false);
       setSelectedPlayer(players[winnerIndex]);
 
       if (gameType === 'TRUTH OR DARE') {
         setShowTruthOrDareChoice(true);
       } else {
-        const pool = questionCache?.general ?? [];
-        if (pool.length) setQuestion(pool[Math.floor(Math.random() * pool.length)]);
+        const q = pickQuestion('general');
+        if (q) setQuestion(q);
       }
     },
-    [players, gameType, questionCache],
+    [players, gameType, pickQuestion],
   );
 
   const spinWheel = () => {
@@ -120,7 +144,7 @@ export function SpinnerScreen() {
     setQuestion(null);
     setShowTruthOrDareChoice(false);
 
-    const winnerIndex = Math.floor(Math.random() * numPlayers);
+    const winnerIndex = selectWeightedPlayer(numPlayers, spinHistoryRef.current);
     const targetAngle = 360 - (winnerIndex * sliceAngle + sliceAngle / 2);
     const fullSpins = Math.floor(currentDeg.current / 360);
     const newDeg = (fullSpins + 5) * 360 + targetAngle;
@@ -138,10 +162,8 @@ export function SpinnerScreen() {
   };
 
   const handleTruthOrDareChoice = (type: 'truth' | 'dare') => {
-    const pool = type === 'truth'
-      ? (questionCache?.truth  ?? [])
-      : (questionCache?.dare   ?? []);
-    if (pool.length) setQuestion(pool[Math.floor(Math.random() * pool.length)]);
+    const q = pickQuestion(type);
+    if (q) setQuestion(q);
     setShowTruthOrDareChoice(false);
   };
 

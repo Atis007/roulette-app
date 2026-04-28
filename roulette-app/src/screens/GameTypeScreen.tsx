@@ -58,12 +58,6 @@ export function GameTypeScreen() {
       screen: "Players" as const,
     },
     {
-      key: "WOULD YOU RATHER",
-      label: t.wouldYouRather,
-      color: "blue" as const,
-      screen: "Players" as const,
-    },
-    {
       key: "NEVER HAVE I EVER",
       label: t.neverHaveIEver,
       color: "yellow" as const,

@@ -11,19 +11,9 @@ import { fontScale, scale, verticalScale } from "../utils/responsive";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "NeverHaveIEver">;
 
-function pickFrom(pool: string[], exclude: string): string {
-  if (pool.length === 0) return '';
-  if (pool.length === 1) return pool[0];
-  let candidate: string;
-  do {
-    candidate = pool[Math.floor(Math.random() * pool.length)];
-  } while (candidate === exclude);
-  return candidate;
-}
-
 export function NeverHaveIEverScreen() {
   const navigation = useNavigation<Nav>();
-  const { resetGame, language, loadQuestions, questionCache } = useGame();
+  const { resetGame, language, loadQuestions, questionCache, pickQuestion } = useGame();
   const t = translations[language];
 
   const [currentQuestion, setCurrentQuestion] = useState('');
@@ -45,11 +35,9 @@ export function NeverHaveIEverScreen() {
     loadQuestions();
   }, []);
 
-  // Pick first question once cache is ready
   useEffect(() => {
-    const pool = questionCache?.general ?? [];
-    if (pool.length && !currentQuestion) {
-      setCurrentQuestion(pickFrom(pool, ''));
+    if (questionCache?.general.length && !currentQuestion) {
+      setCurrentQuestion(pickQuestion('general'));
     }
   }, [questionCache]);
 
@@ -64,8 +52,7 @@ export function NeverHaveIEverScreen() {
   }, [currentQuestion]);
 
   const handleNext = () => {
-    const pool = questionCache?.general ?? [];
-    setCurrentQuestion(prev => pickFrom(pool, prev));
+    setCurrentQuestion(pickQuestion('general'));
   };
 
   const handleGoHome = () => {
