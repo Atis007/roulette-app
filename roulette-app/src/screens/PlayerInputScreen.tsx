@@ -149,10 +149,14 @@ export function PlayerInputScreen() {
   }, []);
 
   const handleAdd = () => {
-    if (name.trim()) {
-      addPlayer(name.trim());
-      setName("");
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (players.includes(trimmed)) {
+      Alert.alert(t.duplicatePlayerTitle, t.duplicatePlayerMsg, [{ text: "OK" }]);
+      return;
     }
+    addPlayer(trimmed);
+    setName("");
   };
 
   const handleStart = () => {
