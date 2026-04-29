@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { AppState } from "react-native";
 import type { Language } from "../data/translations";
 import { loadQuestionsFromDb, type QuestionCache } from "../utils/database";
 
@@ -22,7 +23,6 @@ interface GameState {
   addPlayer: (name: string) => void;
   removePlayer: (index: number) => void;
   editPlayer: (index: number, name: string) => void;
-  resetGame: () => void;
   setLanguage: (lang: Language) => void;
   loadQuestions: () => Promise<void>;
   pickQuestion: (type: "truth" | "dare" | "general") => string;
@@ -61,6 +61,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const deckRef = useRef(emptyDeck());
   const ptrRef = useRef(emptyPtrs());
   const questionCacheRef = useRef<QuestionCache | null>(null);
+  const appStateRef = useRef(AppState.currentState);
 
   useEffect(() => {
     if (!questionCache) return;
@@ -111,7 +112,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setPlayers(players.map((p, i) => (i === index ? trimmed : p)));
   };
 
-  const resetGame = () => {
+  const resetGame = useCallback(() => {
     setRating("");
     setGameType("");
     setPlayers([]);
@@ -121,7 +122,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
     deckRef.current = emptyDeck();
     ptrRef.current = emptyPtrs();
     questionCacheRef.current = null;
-  };
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (
+        appStateRef.current === "active" &&
+        (next === "background" || next === "inactive")
+      ) {
+        resetGame();
+      }
+      appStateRef.current = next;
+    });
+    return () => sub.remove();
+  }, [resetGame]);
 
   const handleSetLanguage = (lang: Language) => {
     if (lang === language) return;
@@ -163,7 +177,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
         addPlayer,
         removePlayer,
         editPlayer,
-        resetGame,
         setLanguage: handleSetLanguage,
         loadQuestions,
         pickQuestion,

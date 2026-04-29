@@ -20,8 +20,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "NeverHaveIEver">;
 
 export function NeverHaveIEverScreen() {
   const navigation = useNavigation<Nav>();
-  const { resetGame, language, loadQuestions, questionCache, pickQuestion } =
-    useGame();
+  const { language, loadQuestions, questionCache, pickQuestion } = useGame();
   const t = translations[language];
 
   const [currentQuestion, setCurrentQuestion] = useState("");
@@ -47,13 +46,6 @@ export function NeverHaveIEverScreen() {
   }, [fadeAnim, scaleAnim]);
 
   useEffect(() => {
-    const unsub = navigation.addListener("beforeRemove", () => {
-      resetGame();
-    });
-    return unsub;
-  }, [navigation, resetGame]);
-
-  useEffect(() => {
     setCurrentQuestion("");
     loadQuestions();
   }, [loadQuestions]);
@@ -69,11 +61,11 @@ export function NeverHaveIEverScreen() {
   }, [currentQuestion, animateIn]);
 
   const handleNext = () => {
-    setCurrentQuestion(pickQuestion("general"));
+    const q = pickQuestion("general");
+    if (q) setCurrentQuestion(q);
   };
 
   const handleGoHome = () => {
-    resetGame();
     navigation.navigate("Home");
   };
 

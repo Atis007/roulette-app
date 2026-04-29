@@ -143,7 +143,6 @@ export function SpinnerScreen() {
   const {
     players,
     gameType,
-    resetGame,
     language,
     pickQuestion,
     questionCache,
@@ -163,13 +162,6 @@ export function SpinnerScreen() {
   useEffect(() => {
     if (!questionCache) loadQuestions();
   }, [questionCache, loadQuestions]);
-
-  useEffect(() => {
-    const unsub = navigation.addListener("beforeRemove", () => {
-      resetGame();
-    });
-    return unsub;
-  }, [navigation, resetGame]);
 
   const numPlayers = players.length || 1;
   const sliceAngle = 360 / numPlayers;
@@ -232,7 +224,6 @@ export function SpinnerScreen() {
   };
 
   const handleGoHome = () => {
-    resetGame();
     navigation.navigate("Home");
   };
 

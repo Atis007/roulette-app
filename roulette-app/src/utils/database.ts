@@ -16,6 +16,16 @@ export interface QuestionCache {
 const DB_ASSET = require("../data/questions.db") as number;
 const DB_NAME = "questions.db";
 
+let dbInstance: SQLite.SQLiteDatabase | null = null;
+
+async function getDb(): Promise<SQLite.SQLiteDatabase> {
+  await ensureDb();
+  if (!dbInstance) {
+    dbInstance = await SQLite.openDatabaseAsync(DB_NAME);
+  }
+  return dbInstance;
+}
+
 const RATING_MAP: Record<string, string> = { "PG-13": "PG13" };
 const toDbRating = (r: string): string => RATING_MAP[r] ?? r;
 
@@ -42,9 +52,7 @@ export async function loadQuestionsFromDb(
   gameType: string,
   rating: string,
 ): Promise<QuestionCache> {
-  await ensureDb();
-
-  const db = await SQLite.openDatabaseAsync(DB_NAME);
+  const db = await getDb();
   const dbRating = toDbRating(rating);
   const types = TYPE_MAP[gameType] ?? [];
   const cache: QuestionCache = { truth: [], dare: [], general: [] };
@@ -61,6 +69,5 @@ export async function loadQuestionsFromDb(
     else cache.general = questions;
   }
 
-  await db.closeAsync();
   return cache;
 }
