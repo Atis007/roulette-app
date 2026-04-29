@@ -28,15 +28,18 @@ function PlayerItem({
   name,
   onRemove,
   onEdit,
+  onDuplicate,
 }: {
   name: string;
   onRemove: () => void;
-  onEdit: (newName: string) => void;
+  onEdit: (newName: string) => boolean;
+  onDuplicate: () => void;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateX = useRef(new Animated.Value(-50)).current;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
+  const cancellingRef = useRef(false);
 
   useEffect(() => {
     Animated.parallel([
@@ -54,12 +57,26 @@ function PlayerItem({
   }, [opacity, translateX]);
 
   const confirmEdit = () => {
-    if (draft.trim()) onEdit(draft.trim());
-    else setDraft(name);
+    if (cancellingRef.current) {
+      cancellingRef.current = false;
+      return;
+    }
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === name) {
+      setDraft(name);
+      setEditing(false);
+      return;
+    }
+    const ok = onEdit(trimmed);
+    if (!ok) {
+      onDuplicate();
+      setDraft(name);
+    }
     setEditing(false);
   };
 
   const cancelEdit = () => {
+    cancellingRef.current = true;
     setDraft(name);
     setEditing(false);
   };
@@ -97,6 +114,9 @@ function PlayerItem({
       {editing ? (
         <TouchableOpacity
           style={styles.cancelBtn}
+          onPressIn={() => {
+            cancellingRef.current = true;
+          }}
           onPress={cancelEdit}
           activeOpacity={0.8}
         >
@@ -226,6 +246,11 @@ export function PlayerInputScreen() {
                       name={p}
                       onRemove={() => removePlayer(i)}
                       onEdit={(newName) => editPlayer(i, newName)}
+                      onDuplicate={() =>
+                        Alert.alert(t.duplicatePlayerTitle, t.duplicatePlayerMsg, [
+                          { text: "OK" },
+                        ])
+                      }
                     />
                   ))
                 )}

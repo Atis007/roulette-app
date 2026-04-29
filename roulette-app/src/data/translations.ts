@@ -26,6 +26,8 @@ export const translations = {
     done: "NEXT TURN",
     rotateDevice: "Please Rotate Your Device",
     rotateDesc: "This game is designed to be played in portrait mode!",
+    loadingQuestions: "Loading questions...",
+    noQuestionsAvailable: "No questions available for this combination.",
   },
   hu: {
     selectRating: "VÁLASSZ BESOROLÁST",
@@ -55,6 +57,8 @@ export const translations = {
     done: "KÖVETKEZŐ KÖR",
     rotateDevice: "Kérlek forgasd el az eszközt",
     rotateDesc: "Ez a játék álló nézetre lett tervezve!",
+    loadingQuestions: "Kérdések betöltése...",
+    noQuestionsAvailable: "Nincs elérhető kérdés ehhez a kombinációhoz.",
   },
 };
 

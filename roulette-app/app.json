@@ -32,7 +32,7 @@
       [
         "expo-asset",
         {
-          "assets": ["src/data/questions.db", "src/data/questions_hu.db"]
+          "assets": ["src/data/questions.db"]
         }
       ]
     ]

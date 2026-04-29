@@ -44,24 +44,8 @@ const WHEEL_SIZE = Math.min(
 );
 
 function buildSlices(players: string[]) {
-  const n = players.length || 1;
+  const n = players.length;
   const sliceAngle = 360 / n;
-
-  if (n === 1) {
-    return {
-      paths: [
-        { key: players[0] ?? "solo", d: "", fill: COLORS[0], isCircle: true },
-      ],
-      texts: [] as {
-        key: string;
-        x: number;
-        y: number;
-        rotation: number;
-        label: string;
-        fontSize: number;
-      }[],
-    };
-  }
 
   let currentAngle = 0;
   const paths: { key: string; d: string; fill: string; isCircle: boolean }[] =
@@ -142,11 +126,12 @@ export function SpinnerScreen() {
   const navigation = useNavigation<Nav>();
   const {
     players,
-    gameType,
     language,
     pickQuestion,
     questionCache,
+    questionsLoading,
     loadQuestions,
+    clearRound,
   } = useGame();
   const t = translations[language];
 
@@ -158,14 +143,26 @@ export function SpinnerScreen() {
   const currentDeg = useRef(0);
   const rotationAnim = useRef(new Animated.Value(0)).current;
   const spinHistoryRef = useRef<number[]>([]);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     if (!questionCache) loadQuestions();
   }, [questionCache, loadQuestions]);
 
-  const numPlayers = players.length || 1;
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      rotationAnim.stopAnimation();
+    };
+  }, [rotationAnim]);
+
+  const numPlayers = Math.max(players.length, 1);
   const sliceAngle = 360 / numPlayers;
-  const { paths, texts } = buildSlices(players);
+  const { paths, texts } =
+    players.length >= 2
+      ? buildSlices(players)
+      : { paths: [], texts: [] };
 
   const rotate = rotationAnim.interpolate({
     inputRange: [-72000, 72000],
@@ -174,20 +171,15 @@ export function SpinnerScreen() {
 
   const handleSpinComplete = useCallback(
     (winnerIndex: number) => {
+      if (!mountedRef.current) return;
       spinHistoryRef.current = [...spinHistoryRef.current, winnerIndex].slice(
         -6,
       );
       setIsSpinning(false);
       setSelectedPlayer(players[winnerIndex]);
-
-      if (gameType === "TRUTH OR DARE") {
-        setShowTruthOrDareChoice(true);
-      } else {
-        const q = pickQuestion("general");
-        if (q) setQuestion(q);
-      }
+      setShowTruthOrDareChoice(true);
     },
-    [players, gameType, pickQuestion],
+    [players],
   );
 
   const spinWheel = () => {
@@ -219,11 +211,12 @@ export function SpinnerScreen() {
 
   const handleTruthOrDareChoice = (type: "truth" | "dare") => {
     const q = pickQuestion(type);
-    if (q) setQuestion(q);
+    setQuestion(q ?? (questionsLoading ? t.loadingQuestions : t.noQuestionsAvailable));
     setShowTruthOrDareChoice(false);
   };
 
   const handleGoHome = () => {
+    clearRound();
     navigation.navigate("Home");
   };
 

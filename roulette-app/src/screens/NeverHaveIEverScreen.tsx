@@ -20,7 +20,14 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "NeverHaveIEver">;
 
 export function NeverHaveIEverScreen() {
   const navigation = useNavigation<Nav>();
-  const { language, loadQuestions, questionCache, pickQuestion } = useGame();
+  const {
+    language,
+    loadQuestions,
+    questionCache,
+    pickQuestion,
+    questionsLoading,
+    clearRound,
+  } = useGame();
   const t = translations[language];
 
   const [currentQuestion, setCurrentQuestion] = useState("");
@@ -52,7 +59,8 @@ export function NeverHaveIEverScreen() {
 
   useEffect(() => {
     if (questionCache?.general.length && !currentQuestion) {
-      setCurrentQuestion(pickQuestion("general"));
+      const q = pickQuestion("general");
+      if (q) setCurrentQuestion(q);
     }
   }, [questionCache, pickQuestion, currentQuestion]);
 
@@ -66,8 +74,19 @@ export function NeverHaveIEverScreen() {
   };
 
   const handleGoHome = () => {
+    clearRound();
     navigation.navigate("Home");
   };
+
+  const cacheReady = !!questionCache;
+  const cacheEmpty = cacheReady && !questionCache?.general.length;
+  const displayText = currentQuestion
+    ? currentQuestion
+    : !cacheReady || questionsLoading
+      ? t.loadingQuestions
+      : cacheEmpty
+        ? t.noQuestionsAvailable
+        : "";
 
   return (
     <ScreenWrapper>
@@ -104,7 +123,7 @@ export function NeverHaveIEverScreen() {
             contentContainerStyle={styles.questionScroll}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.questionText}>{currentQuestion}</Text>
+            <Text style={styles.questionText}>{displayText}</Text>
           </ScrollView>
         </Animated.View>
 
@@ -115,6 +134,7 @@ export function NeverHaveIEverScreen() {
             size="lg"
             style={{ width: "100%" }}
             onPress={handleNext}
+            disabled={!cacheReady || cacheEmpty}
           >
             {t.done}
           </BouncyButton>

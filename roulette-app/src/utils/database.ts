@@ -54,7 +54,11 @@ export async function loadQuestionsFromDb(
 ): Promise<QuestionCache> {
   const db = await getDb();
   const dbRating = toDbRating(rating);
-  const types = TYPE_MAP[gameType] ?? [];
+  const types = TYPE_MAP[gameType];
+  if (!types) {
+    console.warn(`[DB] Unknown gameType: ${gameType}`);
+    return { truth: [], dare: [], general: [] };
+  }
   const cache: QuestionCache = { truth: [], dare: [], general: [] };
 
   for (const t of types) {

@@ -22,10 +22,11 @@ interface GameState {
   setGameType: (type: string) => void;
   addPlayer: (name: string) => void;
   removePlayer: (index: number) => void;
-  editPlayer: (index: number, name: string) => void;
+  editPlayer: (index: number, name: string) => boolean;
   setLanguage: (lang: Language) => void;
   loadQuestions: () => Promise<void>;
-  pickQuestion: (type: "truth" | "dare" | "general") => string;
+  pickQuestion: (type: "truth" | "dare" | "general") => string | null;
+  clearRound: () => void;
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -48,8 +49,8 @@ const emptyPtrs = () => ({ truth: 0, dare: 0, general: 0 });
 const GameContext = createContext<GameState | undefined>(undefined);
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  const [rating, setRating] = useState("");
-  const [gameType, setGameType] = useState("");
+  const [rating, setRatingState] = useState("");
+  const [gameType, setGameTypeState] = useState("");
   const [players, setPlayers] = useState<string[]>([]);
   const [language, setLanguage] = useState<Language>("en");
   const [questionCache, setQuestionCache] = useState<QuestionCache | null>(
@@ -60,8 +61,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const loadingRef = useRef(false);
   const deckRef = useRef(emptyDeck());
   const ptrRef = useRef(emptyPtrs());
+  const lastShownRef = useRef<{ truth: string; dare: string; general: string }>(
+    { truth: "", dare: "", general: "" },
+  );
   const questionCacheRef = useRef<QuestionCache | null>(null);
   const appStateRef = useRef(AppState.currentState);
+
+  const clearDeckState = useCallback(() => {
+    setQuestionCache(null);
+    setQuestionsLoading(false);
+    loadingRef.current = false;
+    deckRef.current = emptyDeck();
+    ptrRef.current = emptyPtrs();
+    lastShownRef.current = { truth: "", dare: "", general: "" };
+    questionCacheRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (!questionCache) return;
@@ -73,56 +87,93 @@ export function GameProvider({ children }: { children: ReactNode }) {
     ptrRef.current = emptyPtrs();
   }, [questionCache]);
 
-  const pickQuestion = useCallback((type: DeckKey): string => {
+  const pickQuestion = useCallback((type: DeckKey): string | null => {
     if (!deckRef.current[type].length) {
       const cache = questionCacheRef.current;
       if (cache?.[type].length) {
         deckRef.current[type] = shuffle([...cache[type]]);
         ptrRef.current[type] = 0;
       } else {
-        return "";
+        return null;
       }
     }
     const ptr = ptrRef.current[type];
     const question = deckRef.current[type][ptr];
     const next = ptr + 1;
     if (next >= deckRef.current[type].length) {
-      deckRef.current[type] = shuffle([...deckRef.current[type]]);
+      const reshuffled = shuffle([...deckRef.current[type]]);
+      if (reshuffled.length > 1 && reshuffled[0] === question) {
+        const swapAt = 1 + Math.floor(Math.random() * (reshuffled.length - 1));
+        [reshuffled[0], reshuffled[swapAt]] = [
+          reshuffled[swapAt],
+          reshuffled[0],
+        ];
+      }
+      deckRef.current[type] = reshuffled;
       ptrRef.current[type] = 0;
     } else {
       ptrRef.current[type] = next;
     }
+    lastShownRef.current[type] = question;
     return question;
   }, []);
 
+  const setRating = useCallback(
+    (next: string) => {
+      setRatingState((prev) => {
+        if (prev !== next) clearDeckState();
+        return next;
+      });
+    },
+    [clearDeckState],
+  );
+
+  const setGameType = useCallback(
+    (next: string) => {
+      setGameTypeState((prev) => {
+        if (prev !== next) clearDeckState();
+        return next;
+      });
+    },
+    [clearDeckState],
+  );
+
   const addPlayer = (name: string) => {
-    if (name.trim() && !players.includes(name.trim())) {
-      setPlayers([...players, name.trim()]);
-    }
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setPlayers((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
   };
 
   const removePlayer = (index: number) => {
-    setPlayers(players.filter((_, i) => i !== index));
+    setPlayers((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const editPlayer = (index: number, name: string) => {
+  const editPlayer = (index: number, name: string): boolean => {
     const trimmed = name.trim();
-    if (!trimmed) return;
-    if (players.some((p, i) => i !== index && p === trimmed)) return;
-    setPlayers(players.map((p, i) => (i === index ? trimmed : p)));
+    if (!trimmed) return false;
+    let ok = true;
+    setPlayers((prev) => {
+      if (prev.some((p, i) => i !== index && p === trimmed)) {
+        ok = false;
+        return prev;
+      }
+      return prev.map((p, i) => (i === index ? trimmed : p));
+    });
+    return ok;
   };
 
   const resetGame = useCallback(() => {
-    setRating("");
-    setGameType("");
+    setRatingState("");
+    setGameTypeState("");
     setPlayers([]);
-    setQuestionCache(null);
-    setQuestionsLoading(false);
-    loadingRef.current = false;
-    deckRef.current = emptyDeck();
-    ptrRef.current = emptyPtrs();
-    questionCacheRef.current = null;
-  }, []);
+    clearDeckState();
+  }, [clearDeckState]);
+
+  const clearRound = useCallback(() => {
+    setRatingState("");
+    setGameTypeState("");
+    clearDeckState();
+  }, [clearDeckState]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next) => {
@@ -140,11 +191,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const handleSetLanguage = (lang: Language) => {
     if (lang === language) return;
     setLanguage(lang);
-    setQuestionCache(null);
-    loadingRef.current = false;
-    deckRef.current = emptyDeck();
-    ptrRef.current = emptyPtrs();
-    questionCacheRef.current = null;
   };
 
   const loadQuestions = useCallback(async () => {
@@ -180,6 +226,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         setLanguage: handleSetLanguage,
         loadQuestions,
         pickQuestion,
+        clearRound,
       }}
     >
       {children}
